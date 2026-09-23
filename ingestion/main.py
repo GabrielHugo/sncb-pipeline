@@ -18,15 +18,11 @@ for station in stations :
 
         if status == 200:
 
-            print(f"Status {status} is ok!")
-
             with open(bronze_file, "w", encoding="utf-8") as f:
                 f.write(rr.text)
 
-            
-
         else:
-              print(f"Status {status} isn't ok!")
+              print(f"Failed for {station}: {status}")
 
     except requests.exceptions.RequestException as e:
         print(f"Error for {station} : {e}")
