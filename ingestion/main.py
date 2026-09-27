@@ -2,6 +2,12 @@ import requests
 from datetime import datetime
 import time
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+import os, fnmatch
+
 stations = ["Namur", "Gent-Sint-Pieters", "Luxembourg", "Hugo", "Liège", "Anvers"]
 
 v_counter = 0
@@ -38,3 +44,14 @@ for station in stations :
 
 print(f"{v_counter} victory")
 print(f"{f_counter} failure")
+
+
+def find(pattern, path):
+    result = []
+    for root, files in os.walk(path):
+        for name in files:
+            if fnmatch.fnmatch(name, pattern):
+                result.append(os.path.join(root, name))
+    print(result)
+
+find('*.json', "data/bronze")
