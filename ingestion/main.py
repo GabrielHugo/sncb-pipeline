@@ -3,55 +3,54 @@ from datetime import datetime
 import time
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
-
-import os, fnmatch
 
 stations = ["Namur", "Gent-Sint-Pieters", "Luxembourg", "Hugo", "Liège", "Anvers"]
 
 v_counter = 0
 f_counter = 0
-
-for station in stations :
+rows = []
+for station in stations:
 
     f_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    bronze_file = f"data/bronze/{station}_{f_time}.json"
-
     try:
-
         rr = requests.get(f'https://api.irail.be/v1/liveboard?station={station}&format=json&lang=fr')
-
         status = rr.status_code
 
         if status == 200:
 
-            with open(bronze_file, "w", encoding="utf-8") as f:
-                f.write(rr.text)
+            data = rr.json()
+            departures = data["departures"]["departure"]
 
-            v_counter+=1
+            for departure in departures:
+                row = {
+                    "destination": departure["station"],
+                    "delay": departure["delay"],
+                    "time": departure["time"],
+                    "canceled": departure["canceled"],
+                    "platform": departure["platform"],
+                    "train_type": departure["vehicleinfo"]["type"],
+                    "source_station": station,
+                    "ingested_at": f_time,
+                }
+                rows.append(row)
+
+            v_counter += 1
 
         else:
-              print(f"Failed for {station}: {status}")
-              f_counter+=1
+            print(f"Failed for {station}: {status}")
+            f_counter += 1
 
     except requests.exceptions.RequestException as e:
-        print(f"Error for {station} : {e}")
-        f_counter+=1
+        print(f"Network error for {station}: {e}")
+        f_counter += 1
 
     time.sleep(0.5)
 
-print(f"{v_counter} victory")
-print(f"{f_counter} failure")
+print(f"{v_counter} succeeded, {f_counter} failed, {len(rows)} departures collected")
 
+df = pd.DataFrame(rows)
+df.to_parquet(f"data/bronze/departures_{f_time}.parquet", index=False)
 
-def find(pattern, path):
-    result = []
-    for root, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
-                result.append(os.path.join(root, name))
-    print(result)
-
-find('*.json', "data/bronze")
+print(df.shape)
+print(df.head())
